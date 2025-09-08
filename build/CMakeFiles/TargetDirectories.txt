@@ -1,0 +1,3 @@
+/workspace/project/rknn_parallel_deploy/build/CMakeFiles/rebuild_cache.dir
+/workspace/project/rknn_parallel_deploy/build/CMakeFiles/edit_cache.dir
+/workspace/project/rknn_parallel_deploy/build/CMakeFiles/rknn_parallel_deploy.dir
