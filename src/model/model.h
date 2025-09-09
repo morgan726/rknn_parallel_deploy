@@ -1,3 +1,6 @@
+#ifndef MODEL_H
+#define MODEL_H
+
 #include <cstddef>
 #include <iomanip>
 #include "rknn_api.h"
@@ -51,8 +54,8 @@ protected:
     int postprocess(rknn_output* outputs,FrameInfo &frame) override;
 
 private:
-    std::string mod_path_;
-    float thr_;
     cv::Mat crop_mat_, input_mat_rgb_, affine_transform_reverse_;
     std::vector<PosePoint> pose_result_;
 };
+
+#endif

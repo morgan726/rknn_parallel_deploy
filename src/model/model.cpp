@@ -9,7 +9,7 @@ int yolov11::preprocess(const FrameInfo& frame) {
   memset(&dst_rect, 0, sizeof(dst_rect));
   memset(&src, 0, sizeof(src));
   memset(&dst, 0, sizeof(dst));
-
+  std::cout<<"img_height"<<frame.img_height<<frame.img_width<<std::endl;
   if (frame.img_width != app_ctx_.model_width || frame.img_height != app_ctx_.model_height) {
     preprocessed_data_ = malloc(app_ctx_.model_height * app_ctx_.model_width * app_ctx_.model_channel);
     memset(preprocessed_data_, 0x00, app_ctx_.model_height * app_ctx_.model_width * app_ctx_.model_channel);

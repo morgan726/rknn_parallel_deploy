@@ -15,7 +15,7 @@ RknnModelBase::~RknnModelBase() {
   if (app_ctx_.output_attrs) free(app_ctx_.output_attrs);
 }
 
-int RknnModelBase::init_rknn(const std::string &model_path) { return init_model(model_path.c_str(), &app_ctx_); }
+int RknnModelBase::init_rknn(const std::string &model_path) { return init_model(model_path.c_str()); }
 int RknnModelBase::infer(FrameInfo &frame) {
   if (preprocess(frame) != 0) return -1;
   rknn_input inputs[app_ctx_.io_num.n_input];
@@ -78,7 +78,7 @@ int RknnModelBase::read_data_from_file(const char *path, char **out_data) {
   return file_size;
 }
 
-int RknnModelBase::init_model(const char *model_path, rknn_app_context_t *app_ctx) {
+int RknnModelBase::init_model(const char *model_path) {
   int ret;
   int model_len = 0;
   char *model;
@@ -109,65 +109,6 @@ int RknnModelBase::init_model(const char *model_path, rknn_app_context_t *app_ct
 
   // Get Model Input Info
   printf("input tensors:\n");
-  rknn_tensor_attr input_native_attrs[io_num.n_input];
-  memset(input_native_attrs, 0, sizeof(input_native_attrs));
-  for (int i = 0; i < io_num.n_input; i++) {
-    input_native_attrs[i].index = i;
-    ret = rknn_query(ctx, RKNN_QUERY_NATIVE_INPUT_ATTR, &(input_native_attrs[i]), sizeof(rknn_tensor_attr));
-    if (ret != RKNN_SUCC) {
-      printf("rknn_query fail! ret=%d\n", ret);
-      return -1;
-    }
-    dump_tensor_attr(&(input_native_attrs[i]));
-  }
-
-  // default input type is int8 (normalize and quantize need compute in outside)
-  // if set uint8, will fuse normalize and quantize to npu
-  input_native_attrs[0].type = RKNN_TENSOR_UINT8;
-  app_ctx->input_mems[0] = rknn_create_mem(ctx, input_native_attrs[0].size_with_stride);
-
-  // Set input tensor memory
-  ret = rknn_set_io_mem(ctx, app_ctx->input_mems[0], &input_native_attrs[0]);
-  if (ret < 0) {
-    printf("input_mems rknn_set_io_mem fail! ret=%d\n", ret);
-    return -1;
-  }
-
-  // Get Model Output Info
-  printf("output tensors:\n");
-  rknn_tensor_attr output_native_attrs[io_num.n_output];
-  memset(output_native_attrs, 0, sizeof(output_native_attrs));
-  for (int i = 0; i < io_num.n_output; i++) {
-    output_native_attrs[i].index = i;
-    ret = rknn_query(ctx, RKNN_QUERY_NATIVE_OUTPUT_ATTR, &(output_native_attrs[i]), sizeof(rknn_tensor_attr));
-    if (ret != RKNN_SUCC) {
-      printf("rknn_query fail! ret=%d\n", ret);
-      return -1;
-    }
-    dump_tensor_attr(&(output_native_attrs[i]));
-  }
-
-  // Set output tensor memory
-  for (uint32_t i = 0; i < io_num.n_output; ++i) {
-    app_ctx->output_mems[i] = rknn_create_mem(ctx, output_native_attrs[i].size_with_stride);
-    ret = rknn_set_io_mem(ctx, app_ctx->output_mems[i], &output_native_attrs[i]);
-    if (ret < 0) {
-      printf("output_mems rknn_set_io_mem fail! ret=%d\n", ret);
-      return -1;
-    }
-  }
-
-  // Set to context
-  app_ctx->rknn_ctx = ctx;
-
-  // TODO
-  if (output_native_attrs[0].qnt_type == RKNN_TENSOR_QNT_AFFINE_ASYMMETRIC &&
-      output_native_attrs[0].type == RKNN_TENSOR_INT8) {
-    app_ctx->is_quant = true;
-  } else {
-    app_ctx->is_quant = false;
-  }
-
   rknn_tensor_attr input_attrs[io_num.n_input];
   memset(input_attrs, 0, sizeof(input_attrs));
   for (int i = 0; i < io_num.n_input; i++) {
@@ -177,8 +118,11 @@ int RknnModelBase::init_model(const char *model_path, rknn_app_context_t *app_ct
       printf("rknn_query fail! ret=%d\n", ret);
       return -1;
     }
+    dump_tensor_attr(&(input_attrs[i]));
   }
 
+  // Get Model Output Info
+  printf("output tensors:\n");
   rknn_tensor_attr output_attrs[io_num.n_output];
   memset(output_attrs, 0, sizeof(output_attrs));
   for (int i = 0; i < io_num.n_output; i++) {
@@ -188,32 +132,38 @@ int RknnModelBase::init_model(const char *model_path, rknn_app_context_t *app_ct
       printf("rknn_query fail! ret=%d\n", ret);
       return -1;
     }
+    dump_tensor_attr(&(output_attrs[i]));
   }
 
-  app_ctx->io_num = io_num;
-  app_ctx->input_attrs = (rknn_tensor_attr *)malloc(io_num.n_input * sizeof(rknn_tensor_attr));
-  memcpy(app_ctx->input_attrs, input_attrs, io_num.n_input * sizeof(rknn_tensor_attr));
-  app_ctx->output_attrs = (rknn_tensor_attr *)malloc(io_num.n_output * sizeof(rknn_tensor_attr));
-  memcpy(app_ctx->output_attrs, output_attrs, io_num.n_output * sizeof(rknn_tensor_attr));
+  // Set to context
+  app_ctx_.rknn_ctx = ctx;
 
-  app_ctx->input_native_attrs = (rknn_tensor_attr *)malloc(io_num.n_input * sizeof(rknn_tensor_attr));
-  memcpy(app_ctx->input_native_attrs, input_native_attrs, io_num.n_input * sizeof(rknn_tensor_attr));
-  app_ctx->output_native_attrs = (rknn_tensor_attr *)malloc(io_num.n_output * sizeof(rknn_tensor_attr));
-  memcpy(app_ctx->output_native_attrs, output_native_attrs, io_num.n_output * sizeof(rknn_tensor_attr));
+  // TODO
+  if (output_attrs[0].qnt_type == RKNN_TENSOR_QNT_AFFINE_ASYMMETRIC && output_attrs[0].type == RKNN_TENSOR_INT8) {
+    app_ctx_.is_quant = true;
+  } else {
+    app_ctx_.is_quant = false;
+  }
+
+  app_ctx_.io_num = io_num;
+  app_ctx_.input_attrs = (rknn_tensor_attr *)malloc(io_num.n_input * sizeof(rknn_tensor_attr));
+  memcpy(app_ctx_.input_attrs, input_attrs, io_num.n_input * sizeof(rknn_tensor_attr));
+  app_ctx_.output_attrs = (rknn_tensor_attr *)malloc(io_num.n_output * sizeof(rknn_tensor_attr));
+  memcpy(app_ctx_.output_attrs, output_attrs, io_num.n_output * sizeof(rknn_tensor_attr));
 
   if (input_attrs[0].fmt == RKNN_TENSOR_NCHW) {
     printf("model is NCHW input fmt\n");
-    app_ctx->model_channel = input_attrs[0].dims[1];
-    app_ctx->model_height = input_attrs[0].dims[2];
-    app_ctx->model_width = input_attrs[0].dims[3];
+    app_ctx_.model_channel = input_attrs[0].dims[1];
+    app_ctx_.model_height = input_attrs[0].dims[2];
+    app_ctx_.model_width = input_attrs[0].dims[3];
   } else {
     printf("model is NHWC input fmt\n");
-    app_ctx->model_height = input_attrs[0].dims[1];
-    app_ctx->model_width = input_attrs[0].dims[2];
-    app_ctx->model_channel = input_attrs[0].dims[3];
+    app_ctx_.model_height = input_attrs[0].dims[1];
+    app_ctx_.model_width = input_attrs[0].dims[2];
+    app_ctx_.model_channel = input_attrs[0].dims[3];
   }
-  printf("model input height=%d, width=%d, channel=%d\n", app_ctx->model_height, app_ctx->model_width,
-         app_ctx->model_channel);
+  printf("model input height=%d, width=%d, channel=%d\n", app_ctx_.model_height, app_ctx_.model_width,
+         app_ctx_.model_channel);
 
   return 0;
 }

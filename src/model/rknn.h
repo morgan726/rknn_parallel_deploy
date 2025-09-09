@@ -22,7 +22,7 @@ protected:
     void* preprocessed_data_ = nullptr;
 
 private:
-    int init_model(const char* model_path, rknn_app_context_t* app_ctx);
+    int init_model(const char* model_path);
     int read_data_from_file(const char *path, char **out_data);
     void dump_tensor_attr(rknn_tensor_attr *attr);
 

@@ -1,3 +1,7 @@
+#ifndef POSTPROCESS_H
+#define POSTPROCESS_H
+
+
 #include "frame.h"
 
 class GetResultRectyolov11
@@ -34,3 +38,5 @@ private:
 int rtmpose_postprocess(float *simcc_x_result, float *simcc_y_result,
                         cv::Mat affine_transform_reverse,
                         std::vector<PosePoint> &pose_result);
+
+#endif
