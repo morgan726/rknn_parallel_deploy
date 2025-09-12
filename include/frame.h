@@ -21,6 +21,18 @@ struct ObjBox {
   float score;
 };
 
+enum class Status {
+  SUCCESS = 0,          ///< The operation was successful
+  ERROR_READWRITE = 1,  ///< Read / Write file failed
+  ERROR_MEMORY = 2,     ///< Memory error, such as out of memory, memcpy failed
+  INVALID_PARAM = 3,    ///< Invalid parameters
+  WRONG_TYPE = 4,       ///< Invalid data type in `any`
+  ERROR_BACKEND = 5,    ///< Error occurred in processor
+  NOT_IMPLEMENTED = 6,  ///< Function not implemented
+  TIMEOUT = 7,          ///< Time expired
+  STATUS_COUNT = 8,     ///< Number of status
+};
+
 enum class InputType { kImagergb = 0, kImageyuv, kVideo, kDataset, kUndefined };
 
 enum class AlgoType { kYolov11 = 0, kRtmpose, kYolox, kSeg, kDepth, kUndefined };

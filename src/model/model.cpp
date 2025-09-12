@@ -27,6 +27,35 @@ int yolov11::preprocess(const FrameInfo& frame) {
   return 0;
 }
 
+int yolox::preprocess(const FrameInfo& frame) {
+  rga_buffer_t src;
+  rga_buffer_t dst;
+  im_rect src_rect;
+  im_rect dst_rect;
+  memset(&src_rect, 0, sizeof(src_rect));
+  memset(&dst_rect, 0, sizeof(dst_rect));
+  memset(&src, 0, sizeof(src));
+  memset(&dst, 0, sizeof(dst));
+  if (frame.img_width != app_ctx_.model_width || frame.img_height != app_ctx_.model_height) {
+    preprocessed_data_ = malloc(app_ctx_.model_height * app_ctx_.model_width * app_ctx_.model_channel);
+    memset(preprocessed_data_, 0x00, app_ctx_.model_height * app_ctx_.model_width * app_ctx_.model_channel);
+
+    src = wrapbuffer_virtualaddr((void*)frame.orig_img.data, frame.img_width, frame.img_height, RK_FORMAT_RGB_888);
+    dst = wrapbuffer_virtualaddr((void*)preprocessed_data_, app_ctx_.model_width, app_ctx_.model_height,
+                                 RK_FORMAT_RGB_888);
+    int ret = imcheck(src, dst, src_rect, dst_rect);
+    if (IM_STATUS_NOERROR != ret) {
+      printf("%d, check error! %s", __LINE__, imStrError((IM_STATUS)ret));
+      return -1;
+    }
+    IM_STATUS STATUS = imresize(src, dst);
+  }
+  return 0;
+}
+int yolox::postprocess(rknn_output* outputs, FrameInfo& frame) {
+  return 0;
+}
+
 int yolov11::postprocess(rknn_output* outputs, FrameInfo& frame) {
   auto attrs = app_ctx_.output_attrs;
   for (int i = 0; i < app_ctx_.io_num.n_output; ++i) {

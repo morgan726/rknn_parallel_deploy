@@ -23,12 +23,10 @@ protected:
 
 public:
   int threadNum;
-  std::string det_model_path;
-  std::string pose_model_path;
 
-  rknnPool(const std::string det_model_path, const std::string pose_model_path,
-           int threadNum);
-  int init();
+
+  rknnPool();
+  int init(const FrameInfo& frame);
   // 模型推理/Model inference
   int put(inputType inputData);
   // 获取推理结果/Get the results of your inference
@@ -37,32 +35,31 @@ public:
 };
 
 template <typename rknnModel, typename inputType, typename outputType>
-rknnPool<rknnModel, inputType, outputType>::rknnPool(
-    const std::string det_model_path, const std::string pose_model_path,
-    int threadNum) {
-  this->det_model_path = det_model_path;
-  this->pose_model_path = pose_model_path;
-  this->threadNum = threadNum;
+rknnPool<rknnModel, inputType, outputType>::rknnPool() {
   this->id = 0;
 }
 
 template <typename rknnModel, typename inputType, typename outputType>
-int rknnPool<rknnModel, inputType, outputType>::init() {
+int rknnPool<rknnModel, inputType, outputType>::init(const FrameInfo& frame) {
   try {
-    this->pool = std::make_unique<dpool::ThreadPool>(this->threadNum);
-    for (int i = 0; i < this->threadNum; i++)
-      models.push_back(std::make_shared<rknnModel>(this->det_model_path.c_str(),this->pose_model_path.c_str()));
+    threadNum = frame.alg_parm.thread_num;
+    if (threadNum <= 0) return -1;
+    this->pool = std::make_unique<dpool::ThreadPool>(threadNum);
+    for (int i = 0; i < this->threadNum; i++){
+      if(frame.alg_type == AlgoType::kYolox){
+        models.push_back(std::make_shared<rknnModel>());
+      }
+    }
   } catch (const std::bad_alloc &e) {
     std::cout << "Out of memory: " << e.what() << std::endl;
     return -1;
   }
   // 初始化模型/Initialize the model
   for (int i = 0, ret = 0; i < threadNum; i++) {
-    ret = models[i]->init();
+    ret = models[i]->init(frame);
     if (ret != 0)
       return ret;
   }
-
   return 0;
 }
 
